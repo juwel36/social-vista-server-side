@@ -33,8 +33,30 @@ async function run() {
 
 
     const userCollection = client.db("SocialVistaDB").collection("users")
+    const PostsCollection = client.db("SocialVistaDB").collection("posts")
 
 
+// posts collection
+
+app.post('/posts', async (req, res) => {
+  const user = req.body;
+  const result = await PostsCollection.insertOne(user);
+  res.send(result)
+
+})
+
+app.get('/posts', async (req, res) => {
+
+  let query = {};
+
+  if (req.query?.email) {
+      query = { email: req.query.email };
+  }
+
+  const cursor = PostsCollection.find(query)
+  const result = await cursor.toArray()
+  res.send(result)
+})
 
 
 
@@ -55,11 +77,18 @@ async function run() {
 
     })
 
+
     app.get('/users', async (req, res) => {
       // console.log(req.headers);
-      const cursor = userCollection.find()
-      const result = await cursor.toArray()
-      res.send(result)
+     let query = {};
+
+        if (req.query?.email) {
+            query = { email: req.query.email };
+        }
+
+        const cursor = userCollection.find(query);
+        const result = await cursor.toArray();
+        res.send(result);
     })
 
 
