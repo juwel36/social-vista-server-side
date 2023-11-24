@@ -32,15 +32,35 @@ async function run() {
     // await client.connect();
 
 
+    const userCollection = client.db("SocialVistaDB").collection("users")
 
 
 
 
 
 
+// user releted 
 
+    app.post('/users', async (req, res) => {
+      const user = req.body;
 
+      // inser email if user dosent exist
+      const query = { email: user.email }
+      const existingUser = await userCollection.findOne(query)
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertedId: null })
+      }
+      const result = await userCollection.insertOne(user);
+      res.send(result)
 
+    })
+
+    app.get('/users', async (req, res) => {
+      // console.log(req.headers);
+      const cursor = userCollection.find()
+      const result = await cursor.toArray()
+      res.send(result)
+    })
 
 
 
