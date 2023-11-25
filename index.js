@@ -35,6 +35,7 @@ async function run() {
 
     const userCollection = client.db("SocialVistaDB").collection("users")
     const PostsCollection = client.db("SocialVistaDB").collection("posts")
+    const commentsCollection = client.db("SocialVistaDB").collection("comments")
 
 
 
@@ -47,25 +48,6 @@ async function run() {
 
 // ...
 
-const postsPerPage = 5;
-
-app.get('/posts', async (req, res) => {
-  let query = {};
-  const page = parseInt(req.query.page) || 1;
-  const skip = (page - 1) * postsPerPage;
-
-  if (req.query?.tag) {
-    query.tag = req.query.tag;
-  }
-
-  if (req.query?.email) {
-    query.email = req.query.email;
-  }
-
-  const cursor = PostsCollection.find(query).skip(skip).limit(postsPerPage);
-  const result = await cursor.toArray();
-  res.send(result);
-});
 
 app.get('/postscount', async (req, res) => {
   const count = await PostsCollection.estimatedDocumentCount();
@@ -86,6 +68,34 @@ app.get('/postscount', async (req, res) => {
 
 
 
+// comment post
+
+app.post('/comments', async (req, res) => {
+  const user = req.body;
+  const result = await commentsCollection.insertOne(user);
+  res.send(result)
+
+})
+
+app.get('/comments', async (req, res) => {
+
+  // let query = {};
+
+  // if (req.query?.postId) {
+  //     query = { postId: req.query.postId };
+  // }
+
+    const cursor = commentsCollection.find();
+    const result = await cursor.toArray();
+    res.send(result);
+})
+
+app.get('/comments/:id', async (req, res) => {
+  const id = req.params.id
+  const query = { _id: new ObjectId(id) }
+  const result = await commentsCollection.findOne(query)
+  res.send(result)
+})
 
 
 
@@ -118,23 +128,25 @@ app.delete('/posts/:id', async (req, res) => {
 })
 
 
+const postsPerPage = 5;
 
-// app.get('/posts', async (req, res) => {
+app.get('/posts', async (req, res) => {
+  let query = {};
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * postsPerPage;
 
-//   let query = {};
+  if (req.query?.tag) {
+    query.tag = req.query.tag;
+  }
 
-//   if (req.query?.tag) {
-//     query.tag = req.query.tag;
-//   }
+  if (req.query?.email) {
+    query.email = req.query.email;
+  }
 
-//   if (req.query?.email) {
-//     query.email = req.query.email;
-//   }
-
-//   const cursor = PostsCollection.find(query);
-//   const result = await cursor.toArray();
-//   res.send(result);
-// });
+  const cursor = PostsCollection.find(query).skip(skip).limit(postsPerPage);
+  const result = await cursor.toArray();
+  res.send(result);
+});
 
 
 
