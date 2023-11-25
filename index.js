@@ -79,12 +79,6 @@ app.post('/comments', async (req, res) => {
 
 app.get('/comments', async (req, res) => {
 
-  // let query = {};
-
-  // if (req.query?.postId) {
-  //     query = { postId: req.query.postId };
-  // }
-
     const cursor = commentsCollection.find();
     const result = await cursor.toArray();
     res.send(result);
@@ -147,6 +141,32 @@ app.get('/posts', async (req, res) => {
   const result = await cursor.toArray();
   res.send(result);
 });
+
+
+
+app.patch('/posts/:id/vote', async (req, res) => {
+  const id = req.params.id;
+  const { type } = req.body; 
+
+  const query = { _id: new ObjectId(id) };
+  const post = await PostsCollection.findOne(query);
+
+  if (!post) {
+    return res.status(404).send({ message: 'Post not found' });
+  }
+  if (type === 'upvote') {
+    post.upvote = String(parseInt(post.upvote) + 1);
+  } else if (type === 'downvote') {
+    post.downvote = String(parseInt(post.downvote) - 1);
+  }
+
+  const result = await PostsCollection.updateOne(query, { $set: post });
+
+  res.send(result);
+});
+
+
+
 
 
 
