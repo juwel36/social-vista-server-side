@@ -1,9 +1,10 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express')
 const cors= require('cors')
 const app = express()
 const port =  process.env.PORT || 5000
 require('dotenv').config()
+
 
 
 
@@ -36,6 +37,62 @@ async function run() {
     const PostsCollection = client.db("SocialVistaDB").collection("posts")
 
 
+
+
+
+// for paigination
+
+
+// posts collection
+
+// ...
+
+const postsPerPage = 5;
+
+app.get('/posts', async (req, res) => {
+  let query = {};
+  const page = parseInt(req.query.page) || 1;
+  const skip = (page - 1) * postsPerPage;
+
+  if (req.query?.tag) {
+    query.tag = req.query.tag;
+  }
+
+  if (req.query?.email) {
+    query.email = req.query.email;
+  }
+
+  const cursor = PostsCollection.find(query).skip(skip).limit(postsPerPage);
+  const result = await cursor.toArray();
+  res.send(result);
+});
+
+app.get('/postscount', async (req, res) => {
+  const count = await PostsCollection.estimatedDocumentCount();
+  res.send({ count });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // posts collection
 
 app.post('/posts', async (req, res) => {
@@ -45,23 +102,41 @@ app.post('/posts', async (req, res) => {
 
 })
 
-app.get('/posts', async (req, res) => {
 
-  let query = {};
+app.get('/posts/:id', async (req, res) => {
+  const id = req.params.id
+  const query = { _id: new ObjectId(id) }
+  const result = await PostsCollection.findOne(query)
+  res.send(result)
+})
 
-  if (req.query?.email) {
-      query = { email: req.query.email };
-  }
-
-  const cursor = PostsCollection.find(query)
-  const result = await cursor.toArray()
+app.delete('/posts/:id', async (req, res) => {
+  const id = req.params.id
+  const query = { _id: new ObjectId(id) }
+  const result = await PostsCollection.deleteOne(query)
   res.send(result)
 })
 
 
 
+// app.get('/posts', async (req, res) => {
 
-// user releted 
+//   let query = {};
+
+//   if (req.query?.tag) {
+//     query.tag = req.query.tag;
+//   }
+
+//   if (req.query?.email) {
+//     query.email = req.query.email;
+//   }
+
+//   const cursor = PostsCollection.find(query);
+//   const result = await cursor.toArray();
+//   res.send(result);
+// });
+
+
 
     app.post('/users', async (req, res) => {
       const user = req.body;
@@ -76,7 +151,7 @@ app.get('/posts', async (req, res) => {
       res.send(result)
 
     })
-
+   
 
     app.get('/users', async (req, res) => {
       // console.log(req.headers);
@@ -85,7 +160,6 @@ app.get('/posts', async (req, res) => {
         if (req.query?.email) {
             query = { email: req.query.email };
         }
-
         const cursor = userCollection.find(query);
         const result = await cursor.toArray();
         res.send(result);
