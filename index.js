@@ -37,6 +37,7 @@ async function run() {
     const PostsCollection = client.db("SocialVistaDB").collection("posts")
     const commentsCollection = client.db("SocialVistaDB").collection("comments")
     const TagsCollection = client.db("SocialVistaDB").collection("Tags")
+    const  announcementCollection = client.db("SocialVistaDB").collection("announcement")
 
 
 
@@ -67,6 +68,26 @@ app.post('/tags', async (req, res) => {
 app.get('/tags', async (req, res) => {
 
   const cursor = TagsCollection.find();
+  const result = await cursor.toArray();
+  res.send(result);
+})
+
+
+
+
+
+
+//  announcement collection
+app.post('/announcement', async (req, res) => {
+  const user = req.body;
+  const result = await announcementCollection.insertOne(user);
+  res.send(result)
+
+})
+
+app.get('/announcement', async (req, res) => {
+
+  const cursor = announcementCollection.find();
   const result = await cursor.toArray();
   res.send(result);
 })
