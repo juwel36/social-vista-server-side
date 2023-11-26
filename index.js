@@ -4,7 +4,7 @@ const cors= require('cors')
 const app = express()
 const port =  process.env.PORT || 5000
 require('dotenv').config()
-
+var jwt = require('jsonwebtoken');
 
 
 
@@ -41,10 +41,40 @@ async function run() {
 
 
 
+// midileware
+const verifyToken=(req,res,next)=>{
+  // console.log("inside verify token",req.headers.authorization);
+if(!req.headers.authorization){
+return res.status(401).send({message: 'forbidden access' })
+}
+const token=req.headers.authorization.split(' ')[1]
+jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+if(err){
+return res.status(401).send({message:'forbidden access'})
+}
+req.decoded=decoded;
+next()
+})
+}
+
+const verifyAdmin=async(req,res,next)=>{
+  const email=req.decoded.email;
+  const query={email: email}
+  const user=await userCollection.findOne(query)
+  const isAdmin=user?.role === 'admin'
+  if(!isAdmin){
+    return res.status(403).send({message: 'forbidden access'})
+  }
+  next();
+  }
 
 
 
-
+    app.post('/jwt',async(req,res)=>{
+      const user=req.body
+      const token=jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1h'})
+      res.send({token})
+      })
 
 
 
@@ -54,7 +84,7 @@ async function run() {
 
 
  //make admin
- app.patch('/users/admin/:id',  async (req, res) => {
+ app.patch('/users/admin/:id',verifyToken,verifyAdmin,  async (req, res) => {
   const id = req.params.id;
   const filter = { _id: new ObjectId(id) }
   const updatedDoc = {
@@ -66,7 +96,7 @@ async function run() {
   res.send(result)
 })
 
-app.get('/users/admin/:email',async(req,res)=>{
+app.get('/users/admin/:email',verifyToken,verifyAdmin,async(req,res)=>{
   const email=req.params.email;
   
   
@@ -104,7 +134,7 @@ app.get('/postscount', async (req, res) => {
 
 
 // tags collection
-app.post('/tags', async (req, res) => {
+app.post('/tags',verifyToken,verifyAdmin, async (req, res) => {
   const user = req.body;
   const result = await TagsCollection.insertOne(user);
   res.send(result)
@@ -124,14 +154,14 @@ app.get('/tags', async (req, res) => {
 
 
 //  announcement collection
-app.post('/announcement', async (req, res) => {
+app.post('/announcement',verifyToken,verifyAdmin, async (req, res) => {
   const user = req.body;
   const result = await announcementCollection.insertOne(user);
   res.send(result)
 
 })
 
-app.get('/announcement', async (req, res) => {
+app.get('/announcement',verifyToken, async (req, res) => {
 
   const cursor = announcementCollection.find();
   const result = await cursor.toArray();
@@ -149,14 +179,14 @@ app.get('/announcement', async (req, res) => {
 
 // comment post
 
-app.post('/comments', async (req, res) => {
+app.post('/comments',verifyToken, async (req, res) => {
   const user = req.body;
   const result = await commentsCollection.insertOne(user);
   res.send(result)
 
 })
 
-app.get('/comments', async (req, res) => {
+app.get('/comments',verifyToken, async (req, res) => {
 
     const cursor = commentsCollection.find();
     const result = await cursor.toArray();
@@ -190,7 +220,7 @@ app.get('/comments/post/:postId', async (req, res) => {
 
 // posts collection
 
-app.post('/posts', async (req, res) => {
+app.post('/posts',verifyToken, async (req, res) => {
   const user = req.body;
   const result = await PostsCollection.insertOne(user);
   res.send(result)
@@ -288,13 +318,14 @@ app.get('/posts/recent', async (req, res) => {
     })
    
 
-    app.get('/users', async (req, res) => {
+    app.get('/users',verifyToken, async (req, res) => {
 
      let query = {};
 
         if (req.query?.email) {
             query = { email: req.query.email };
         }
+  
         const cursor = userCollection.find(query);
         const result = await cursor.toArray();
         res.send(result);
@@ -307,7 +338,7 @@ app.get('/posts/recent', async (req, res) => {
 
 
 
-    app.get('/admin-stats', async (req, res) => {
+    app.get('/admin-stats',verifyToken,verifyAdmin, async (req, res) => {
       const users = await userCollection.estimatedDocumentCount()
       const posts = await PostsCollection.estimatedDocumentCount()
       const comments = await commentsCollection.estimatedDocumentCount()
