@@ -91,6 +91,18 @@ app.get('/comments/:id', async (req, res) => {
   res.send(result)
 })
 
+// ...
+
+
+app.get('/comments/post/:postId', async (req, res) => {
+  const postId = req.params.postId;
+  const query = { postId: postId };
+  const cursor = commentsCollection.find(query);
+  const result = await cursor.toArray();
+  res.send(result);
+});
+
+// ...
 
 
 
@@ -137,7 +149,7 @@ app.get('/posts', async (req, res) => {
     query.email = req.query.email;
   }
 
-  const cursor = PostsCollection.find(query).skip(skip).limit(postsPerPage);
+  const cursor = PostsCollection.find(query).skip(skip).limit(postsPerPage).sort({ timestamp: -1 });
   const result = await cursor.toArray();
   res.send(result);
 });
@@ -164,16 +176,28 @@ app.patch('/posts/:id/vote', async (req, res) => {
 
   res.send(result);
 });
+// ...
+
+app.get('/posts/recent', async (req, res) => {
+  const cursor = PostsCollection.find().sort({ createdAt: -1 }).limit(3);
+  const result = await cursor.toArray();
+  res.send(result);
+});
+
+// ...
 
 
 
 
 
 
+
+
+
+// users
     app.post('/users', async (req, res) => {
       const user = req.body;
 
-      // inser email if user dosent exist
       const query = { email: user.email }
       const existingUser = await userCollection.findOne(query)
       if (existingUser) {
@@ -186,7 +210,7 @@ app.patch('/posts/:id/vote', async (req, res) => {
    
 
     app.get('/users', async (req, res) => {
-      // console.log(req.headers);
+
      let query = {};
 
         if (req.query?.email) {
