@@ -36,7 +36,7 @@ async function run() {
     const userCollection = client.db("SocialVistaDB").collection("users")
     const PostsCollection = client.db("SocialVistaDB").collection("posts")
     const commentsCollection = client.db("SocialVistaDB").collection("comments")
-
+    const TagsCollection = client.db("SocialVistaDB").collection("Tags")
 
 
 
@@ -56,8 +56,20 @@ app.get('/postscount', async (req, res) => {
 
 
 
+// tags collection
+app.post('/tags', async (req, res) => {
+  const user = req.body;
+  const result = await TagsCollection.insertOne(user);
+  res.send(result)
 
+})
 
+app.get('/tags', async (req, res) => {
+
+  const cursor = TagsCollection.find();
+  const result = await cursor.toArray();
+  res.send(result);
+})
 
 
 
@@ -223,6 +235,25 @@ app.get('/posts/recent', async (req, res) => {
 
 
 
+
+
+
+
+
+    app.get('/admin-stats', async (req, res) => {
+      const users = await userCollection.estimatedDocumentCount()
+      const posts = await PostsCollection.estimatedDocumentCount()
+      const comments = await commentsCollection.estimatedDocumentCount()
+
+    
+
+
+      res.send({
+        users,
+        posts,
+        comments,
+      })
+    })
 
 
 
