@@ -52,12 +52,13 @@ async function run() {
     const TagsCollection = client.db("SocialVistaDB").collection("Tags")
     const  announcementCollection = client.db("SocialVistaDB").collection("announcement")
     const reportCollection = client.db("SocialVistaDB").collection("report")
+    const aboutCollection = client.db("SocialVistaDB").collection("about")
 
 
 
 // midileware
 const verifyToken=(req,res,next)=>{
-  console.log("inside verify token",req.headers.authorization);
+  // console.log("inside verify token",req.headers.authorization);
 if(!req.headers.authorization){
 return res.status(401).send({message: 'forbidden access' })
 }
@@ -219,8 +220,9 @@ app.get('/announcement',async (req, res) => {
 
 app.post('/comments',verifyToken, async (req, res) => {
   const user = req.body;
-  const result = await commentsCollection.insertOne(user);
-  res.send(result)
+  const email = req.decoded.email;
+  const result = await commentsCollection.insertOne({ ...user, email });
+  res.send(result);
 
 })
 
@@ -241,13 +243,15 @@ app.get('/comments/:id', async (req, res) => {
 // ...
 
 
-app.get('/comments/post/:postId', async (req, res) => {
+app.get('/comments/post/:postId', verifyToken, async (req, res) => {
   const postId = req.params.postId;
-  const query = { postId: postId };
+  const user = req.decoded;
+  const query = { postId: postId, email: user.email };
   const cursor = commentsCollection.find(query);
   const result = await cursor.toArray();
   res.send(result);
 });
+
 
 
 app.delete('/comments/:id', async (req, res) => {
@@ -378,7 +382,7 @@ app.get('/posts/recent', async (req, res) => {
         res.send(result);
     })
 
-// Add this code after your existing routes
+
 
 // Search users by name
 app.get('/users/search/:name', async (req, res) => {
@@ -428,8 +432,44 @@ app.patch('/users/:id/badge', verifyToken, async (req, res) => {
 
 
 
+   
+    
+    
+    app.post('/about', async (req, res) => {
+      const user = req.body;
+
+      const query = { email: user.email }
+      const existingUser = await aboutCollection.findOne(query)
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertedId: null })
+      }
+
+      const result = await aboutCollection.insertOne(user);
+      res.send(result)
+
+    })
+   
+    app.get('/about', async (req, res) => {
+
+      let query = {};
+ 
+         if (req.query?.email) {
+             query = { email: req.query.email };
+         }
+   
+         const cursor = aboutCollection.find(query);
+         const result = await cursor.toArray();
+         res.send(result);
+     })
+ 
 
 
+
+
+
+
+
+    
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
