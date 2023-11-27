@@ -5,6 +5,7 @@ const app = express()
 const port =  process.env.PORT || 5000
 require('dotenv').config()
 var jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 
 
@@ -12,6 +13,18 @@ var jwt = require('jsonwebtoken');
 app.use(cors())
 app.use(express.json())
 
+
+
+const verifyAdmin=async(req,res,next)=>{
+  const email=req.decoded.email;
+  const query={email: email}
+  const user=await userCollection.findOne(query)
+  const isAdmin=user?.role === 'admin'
+  if(!isAdmin){
+    return res.status(403).send({message: 'forbidden access'})
+  }
+  next();
+  }
 
 
 
@@ -38,12 +51,13 @@ async function run() {
     const commentsCollection = client.db("SocialVistaDB").collection("comments")
     const TagsCollection = client.db("SocialVistaDB").collection("Tags")
     const  announcementCollection = client.db("SocialVistaDB").collection("announcement")
+    const reportCollection = client.db("SocialVistaDB").collection("report")
 
 
 
 // midileware
 const verifyToken=(req,res,next)=>{
-  // console.log("inside verify token",req.headers.authorization);
+  console.log("inside verify token",req.headers.authorization);
 if(!req.headers.authorization){
 return res.status(401).send({message: 'forbidden access' })
 }
@@ -57,17 +71,6 @@ next()
 })
 }
 
-const verifyAdmin=async(req,res,next)=>{
-  const email=req.decoded.email;
-  const query={email: email}
-  const user=await userCollection.findOne(query)
-  const isAdmin=user?.role === 'admin'
-  if(!isAdmin){
-    return res.status(403).send({message: 'forbidden access'})
-  }
-  next();
-  }
-
 
 
     app.post('/jwt',async(req,res)=>{
@@ -77,14 +80,29 @@ const verifyAdmin=async(req,res,next)=>{
       })
 
 
+  // payment intent
+  app.post('/create-payment-intent', async (req, res) => {
+    const { price } = req.body;
+    const amount = parseInt(price * 100)
 
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: "usd",
+      payment_method_types: ['card']
+    })
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+    });
+
+
+  })
 
 
 
 
 
  //make admin
- app.patch('/users/admin/:id',verifyToken,verifyAdmin,  async (req, res) => {
+ app.patch('/users/admin/:id',verifyToken,verifyAdmin, async (req, res) => {
   const id = req.params.id;
   const filter = { _id: new ObjectId(id) }
   const updatedDoc = {
@@ -96,10 +114,10 @@ const verifyAdmin=async(req,res,next)=>{
   res.send(result)
 })
 
-app.get('/users/admin/:email',verifyToken,verifyAdmin,async(req,res)=>{
+app.get('/users/admin/:email',async(req,res)=>{
   const email=req.params.email;
   
-  
+ 
   const query={email: email}
   const user=await userCollection.findOne(query)
   let admin=false;
@@ -123,7 +141,27 @@ app.get('/users/admin/:email',verifyToken,verifyAdmin,async(req,res)=>{
 
 // posts collection
 
-// ...
+
+app.post('/report',async (req, res) => {
+  const user = req.body;
+  const result = await reportCollection.insertOne(user);
+  res.send(result)
+
+})
+app.get('/report', async (req, res) => {
+
+  const cursor = reportCollection.find();
+  const result = await cursor.toArray();
+  res.send(result);
+})
+app.delete('/report/:id', async (req, res) => {
+  const id = req.params.id
+  const query = { _id: new ObjectId(id) }
+  const result = await reportCollection.deleteOne(query)
+  res.send(result)
+})
+
+// // ...
 
 
 app.get('/postscount', async (req, res) => {
@@ -154,14 +192,14 @@ app.get('/tags', async (req, res) => {
 
 
 //  announcement collection
-app.post('/announcement',verifyToken,verifyAdmin, async (req, res) => {
+app.post('/announcement',verifyToken,verifyAdmin,async (req, res) => {
   const user = req.body;
   const result = await announcementCollection.insertOne(user);
   res.send(result)
 
 })
 
-app.get('/announcement',verifyToken, async (req, res) => {
+app.get('/announcement',async (req, res) => {
 
   const cursor = announcementCollection.find();
   const result = await cursor.toArray();
@@ -186,7 +224,7 @@ app.post('/comments',verifyToken, async (req, res) => {
 
 })
 
-app.get('/comments',verifyToken, async (req, res) => {
+app.get('/comments', async (req, res) => {
 
     const cursor = commentsCollection.find();
     const result = await cursor.toArray();
@@ -211,6 +249,15 @@ app.get('/comments/post/:postId', async (req, res) => {
   res.send(result);
 });
 
+
+app.delete('/comments/:id', async (req, res) => {
+  const id = req.params.id
+  const query = { _id: new ObjectId(id) }
+  const result = await commentsCollection.deleteOne(query)
+  res.send(result)
+})
+
+
 // ...
 
 
@@ -220,7 +267,7 @@ app.get('/comments/post/:postId', async (req, res) => {
 
 // posts collection
 
-app.post('/posts',verifyToken, async (req, res) => {
+app.post('/posts',verifyToken,async (req, res) => {
   const user = req.body;
   const result = await PostsCollection.insertOne(user);
   res.send(result)
@@ -318,7 +365,7 @@ app.get('/posts/recent', async (req, res) => {
     })
    
 
-    app.get('/users',verifyToken, async (req, res) => {
+    app.get('/users', async (req, res) => {
 
      let query = {};
 
@@ -331,14 +378,39 @@ app.get('/posts/recent', async (req, res) => {
         res.send(result);
     })
 
+// Add this code after your existing routes
+
+// Search users by name
+app.get('/users/search/:name', async (req, res) => {
+  const name = req.params.name;
+  const query = { name: { $regex: new RegExp(name, 'i') } };
+  const cursor = userCollection.find(query);
+  const result = await cursor.toArray();
+  res.send(result);
+});
+
+
+app.patch('/users/:id/badge', verifyToken, async (req, res) => {
+ 
+    const id = req.params.id;
+    const filter = { _id: new ObjectId(id) };
+    const { Badge } = req.body;
+
+    const updatedDoc = {
+      $set: {
+        Badge: Badge,
+      },
+    };
+
+    const result = await userCollection.updateOne(filter, updatedDoc);
+    res.send(result);
+   
+});
 
 
 
 
-
-
-
-    app.get('/admin-stats',verifyToken,verifyAdmin, async (req, res) => {
+    app.get('/admin-stats',async (req, res) => {
       const users = await userCollection.estimatedDocumentCount()
       const posts = await PostsCollection.estimatedDocumentCount()
       const comments = await commentsCollection.estimatedDocumentCount()
