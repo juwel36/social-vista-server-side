@@ -15,16 +15,6 @@ app.use(express.json())
 
 
 
-const verifyAdmin=async(req,res,next)=>{
-  const email=req.decoded.email;
-  const query={email: email}
-  const user=await userCollection.findOne(query)
-  const isAdmin=user?.role === 'admin'
-  if(!isAdmin){
-    return res.status(403).send({message: 'forbidden access'})
-  }
-  next();
-  }
 
 
 
@@ -72,6 +62,16 @@ next()
 })
 }
 
+const verifyAdmin=async(req,res,next)=>{
+  const email=req.decoded.email;
+  const query={email: email}
+  const user=await userCollection.findOne(query)
+  const isAdmin=user?.role === 'admin'
+  if(!isAdmin){
+    return res.status(403).send({message: 'forbidden access'})
+  }
+  next();
+  }
 
 
     app.post('/jwt',async(req,res)=>{
@@ -309,6 +309,8 @@ app.get('/posts', async (req, res) => {
     query.email = req.query.email;
   }
 
+
+  
   const cursor = PostsCollection.find(query).skip(skip).limit(postsPerPage).sort({ timestamp: -1 });
   const result = await cursor.toArray();
   res.send(result);
@@ -432,7 +434,23 @@ app.patch('/users/:id/badge', verifyToken, async (req, res) => {
 
 
 
-   
+    app.patch('/about', async (req, res) => {
+      const { college, place, Contact, gender, work } = req.body;
+    
+      const updateData = {
+        $set: {
+          college,
+          place,
+          Contact,
+          gender,
+          work,
+        },
+      };
+    
+      const result = await aboutCollection.updateOne({}, updateData);
+    
+      res.send(result);
+    });
     
     
     app.post('/about', async (req, res) => {
@@ -462,6 +480,8 @@ app.patch('/users/:id/badge', verifyToken, async (req, res) => {
          res.send(result);
      })
  
+
+
 
 
 
